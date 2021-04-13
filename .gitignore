@@ -26,6 +26,7 @@ tools/kconfig-frontends/kconfig-mconf
 packages
 cconfig.h
 GPUCache
+.vscode
 
 #cscope files
 cscope.*
