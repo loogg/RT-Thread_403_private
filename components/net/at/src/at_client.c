@@ -27,6 +27,10 @@
 
 static struct at_client at_client_table[AT_CLIENT_NUM_MAX] = { 0 };
 
+extern rt_size_t at_device_send(rt_device_t dev,
+                                rt_off_t    pos,
+                                const void *buffer,
+                                rt_size_t   size);
 extern rt_size_t at_vprintfln(rt_device_t device, const char *format, va_list args);
 extern void at_print_raw_cmd(const char *type, const char *cmd, rt_size_t size);
 extern const char *at_get_last_cmd(rt_size_t *cmd_size);
@@ -113,7 +117,7 @@ at_response_t at_resp_set_info(at_response_t resp, rt_size_t buf_size, rt_size_t
         resp->buf = (char *) rt_realloc(resp->buf, buf_size);
         if (!resp->buf)
         {
-            LOG_D("No memory for realloc response buffer size(%d).", buf_size);
+            LOG_W("No memory for realloc response buffer size(%d).", buf_size);
             return RT_NULL;
         }
     }
@@ -316,7 +320,7 @@ int at_obj_exec_cmd(at_client_t client, at_response_t resp, const char *cmd_expr
         if (rt_sem_take(client->resp_notice, resp->timeout) != RT_EOK)
         {
             cmd = at_get_last_cmd(&cmd_size);
-            LOG_D("execute command (%.*s) timeout (%d ticks)!", cmd_size, cmd, resp->timeout);
+            LOG_W("execute command (%.*s) timeout (%d ticks)!", cmd_size, cmd, resp->timeout);
             client->resp_status = AT_RESP_TIMEOUT;
             result = -RT_ETIMEOUT;
             goto __exit;
@@ -386,7 +390,7 @@ int at_client_obj_wait_connect(at_client_t client, rt_uint32_t timeout)
         /* Check whether it is already connected */
         resp->buf_len = 0;
         resp->line_counts = 0;
-        rt_device_write(client->device, 0, "AT\r\n", 4);
+        at_device_send(client->device, 0, "AT\r\n", 4);
 
         if (rt_sem_take(client->resp_notice, resp->timeout) != RT_EOK)
             continue;
@@ -427,27 +431,25 @@ rt_size_t at_client_obj_send(at_client_t client, const char *buf, rt_size_t size
     at_print_raw_cmd("sendline", buf, size);
 #endif
 
-    return rt_device_write(client->device, 0, buf, size);
+    return at_device_send(client->device, 0, buf, size);
 }
 
 static rt_err_t at_client_getchar(at_client_t client, char *ch, rt_int32_t timeout)
 {
     rt_err_t result = RT_EOK;
 
-__retry:
-    result = rt_sem_take(client->rx_notice, rt_tick_from_millisecond(timeout));
-    if (result != RT_EOK)
+    while (rt_device_read(client->device, 0, ch, 1) == 0)
     {
-        return result;
+        result = rt_sem_take(client->rx_notice, rt_tick_from_millisecond(timeout));
+        if (result != RT_EOK)
+        {
+            return result;
+        }
+
+        rt_sem_control(client->rx_notice, RT_IPC_CMD_RESET, RT_NULL);
     }
-    if(rt_device_read(client->device, 0, ch, 1) == 1)
-    {
-        return RT_EOK;
-    }
-    else
-    {
-        goto __retry;
-    }
+
+    return RT_EOK;
 }
 
 /**

@@ -15,6 +15,10 @@
 static char send_buf[AT_CMD_MAX_LEN];
 static rt_size_t last_cmd_len = 0;
 
+#ifdef AT_PRINT_RAW_CMD
+static rt_uint8_t print_raw_enable = 0;
+#endif
+
 /**
  * dump hex format data to console device
  *
@@ -26,6 +30,11 @@ void at_print_raw_cmd(const char *name, const char *buf, rt_size_t size)
 {
 #define __is_print(ch)       ((unsigned int)((ch) - ' ') < 127u - ' ')
 #define WIDTH_SIZE           32
+
+#ifdef AT_PRINT_RAW_CMD
+    if(!print_raw_enable)
+        return;
+#endif
 
     rt_size_t i, j;
 
@@ -59,6 +68,42 @@ void at_print_raw_cmd(const char *name, const char *buf, rt_size_t size)
     }
 }
 
+#ifdef AT_PRINT_RAW_CMD
+
+void at_print_raw_ctrl(rt_uint8_t enable)
+{
+    if(enable)
+        print_raw_enable = 1;
+    else
+        print_raw_enable = 0;
+}
+
+static long at_enable_print_raw(void)
+{
+    print_raw_enable = 1;
+
+    return RT_EOK;
+}
+MSH_CMD_EXPORT(at_enable_print_raw, enable at print raw);
+
+static long at_disable_print_raw(void)
+{
+    print_raw_enable = 0;
+
+    return RT_EOK;
+}
+MSH_CMD_EXPORT(at_disable_print_raw, disable at print raw);
+
+#endif
+
+RT_WEAK rt_size_t at_device_send(rt_device_t dev,
+                                 rt_off_t    pos,
+                                 const void *buffer,
+                                 rt_size_t   size)
+{
+    return rt_device_write(dev, pos, buffer, size);
+}
+
 const char *at_get_last_cmd(rt_size_t *cmd_size)
 {
     *cmd_size = last_cmd_len;
@@ -73,7 +118,7 @@ rt_size_t at_vprintf(rt_device_t device, const char *format, va_list args)
     at_print_raw_cmd("sendline", send_buf, last_cmd_len);
 #endif
 
-    return rt_device_write(device, 0, send_buf, last_cmd_len);
+    return at_device_send(device, 0, send_buf, last_cmd_len);
 }
 
 rt_size_t at_vprintfln(rt_device_t device, const char *format, va_list args)
@@ -82,7 +127,7 @@ rt_size_t at_vprintfln(rt_device_t device, const char *format, va_list args)
 
     len = at_vprintf(device, format, args);
 
-    rt_device_write(device, 0, "\r\n", 2);
+    at_device_send(device, 0, "\r\n", 2);
 
     return len + 2;
 }
