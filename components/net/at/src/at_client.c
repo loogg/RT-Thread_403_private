@@ -303,13 +303,15 @@ int at_obj_exec_cmd(at_client_t client, at_response_t resp, const char *cmd_expr
     rt_mutex_take(client->lock, RT_WAITING_FOREVER);
 
     client->resp_status = AT_RESP_OK;
-    client->resp = resp;
 
     if (resp != RT_NULL)
     {
         resp->buf_len = 0;
         resp->line_counts = 0;
     }
+
+    client->resp = resp;
+    rt_sem_control(client->resp_notice, RT_IPC_CMD_RESET, RT_NULL);
 
     va_start(args, cmd_expr);
     at_vprintfln(client->device, cmd_expr, args);
@@ -374,6 +376,7 @@ int at_client_obj_wait_connect(at_client_t client, rt_uint32_t timeout)
 
     rt_mutex_take(client->lock, RT_WAITING_FOREVER);
     client->resp = resp;
+    rt_sem_control(client->resp_notice, RT_IPC_CMD_RESET, RT_NULL);
 
     start_time = rt_tick_get();
 
@@ -855,8 +858,8 @@ static int at_client_para_init(at_client_t client)
                                      (void (*)(void *parameter))client_parser,
                                      client,
                                      1024 + 512,
-                                     RT_THREAD_PRIORITY_MAX / 3 - 1,
-                                     5);
+                                     1,
+                                     100);
     if (client->parser == RT_NULL)
     {
         result = -RT_ENOMEM;
