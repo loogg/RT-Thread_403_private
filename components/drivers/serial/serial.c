@@ -167,7 +167,7 @@ static rt_err_t rt_serial_control(struct rt_device *dev,
 
         case RT_SERIAL_CTRL_ASYNC:
         {
-            if(!dev->flag & RT_SERIAL_FLAG_ASYNC)
+            if(!(dev->flag & RT_SERIAL_FLAG_ASYNC))
                 break;
             
             int enable = (int)args;
@@ -283,6 +283,11 @@ rt_err_t rt_hw_serial_register(struct rt_serial_device *serial,
     /* set fops */
     device->fops        = &_serial_fops;
 #endif
+
+    if(flag & RT_SERIAL_FLAG_ASYNC)
+        serial->sync_flag = 0;
+    else
+        serial->sync_flag = 1;
 
     serial->rx_indicate = rt_serial_rx_indicate;
     serial->tx_complete = rt_serial_tx_complete;
