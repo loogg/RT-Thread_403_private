@@ -434,7 +434,13 @@ rt_size_t at_client_obj_send(at_client_t client, const char *buf, rt_size_t size
     at_print_raw_cmd("sendline", buf, size);
 #endif
 
-    return at_device_send(client->device, 0, buf, size);
+    rt_mutex_take(client->lock, RT_WAITING_FOREVER);
+
+    rt_size_t len = at_device_send(client->device, 0, buf, size);
+
+    rt_mutex_release(client->lock);
+
+    return len;
 }
 
 static rt_err_t at_client_getchar(at_client_t client, char *ch, rt_int32_t timeout)
