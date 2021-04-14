@@ -21,9 +21,18 @@
 #define BIT_ORDER_LSB                   0
 #define BIT_ORDER_MSB                   1
 
+#define RT_SERIAL_ERROR_TX_TIMEOUT      0x001
+#define RT_SERIAL_ERROR_RX_FULL         0x002
+#define RT_SERIAL_ERROR_OVERRUN         0x004
+#define RT_SERIAL_ERROR_FRAMING         0x008
+#define RT_SERIAL_ERROR_PARITY          0x010
+#define RT_SERIAL_ERROR_OTHER           0x800
+
 #define RT_SERIAL_CTRL_RESET            0x05
 #define RT_SERIAL_CTRL_FLUSH            0x06
-#define RT_SERIAL_CTRL_SYNC             0x07
+#define RT_SERIAL_CTRL_ASYNC            0x07
+
+#define RT_SERIAL_FLAG_ASYNC            0x080
 
 /* Default config for serial_configure structure */
 #define RT_SERIAL_CONFIG_DEFAULT           \
@@ -52,11 +61,13 @@ struct rt_serial_device
     struct rt_device parent;
 
     rt_uint8_t sync_flag;
+    rt_uint16_t error_flag;
     struct serial_configure config;
     struct rt_ringbuffer rx_rb;
     const struct rt_uart_ops *ops;
     rt_err_t (*rx_indicate)(struct rt_serial_device *serial, rt_size_t size);
     rt_err_t (*tx_complete)(struct rt_serial_device *serial, void *buffer);
+    rt_err_t (*error_indicate)(struct rt_serial_device *serial, rt_uint16_t error_flag);
 };
 typedef struct rt_serial_device rt_serial_t;
 
