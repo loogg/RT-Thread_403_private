@@ -237,6 +237,8 @@ static rt_err_t rt_serial_tx_complete(struct rt_serial_device *serial, void *buf
 static rt_err_t rt_serial_error_indicate(struct rt_serial_device *serial, rt_uint16_t error_flag)
 {
     serial->error_flag |= error_flag;
+    
+    return RT_EOK;
 }
 
 #ifdef RT_USING_DEVICE_OPS
