@@ -203,13 +203,17 @@ static rt_err_t rt_serial_rx_indicate(struct rt_serial_device *serial, rt_size_t
     if(size == 0)
         return RT_EOK;
     
+    rt_base_t level = rt_hw_interrupt_disable();
     if(rt_serial_rb_put_update(&serial->rx_rb, size) != size)
     {
+        rt_hw_interrupt_enable(level);
         rt_serial_check_buffer_size(serial);
         serial->error_indicate(serial, RT_SERIAL_ERROR_RX_FULL);
 
         return -RT_ERROR;
     }
+    size = rt_ringbuffer_data_len(&serial->rx_rb);
+    rt_hw_interrupt_enable(level);
 
     if(serial->parent.rx_indicate)
         serial->parent.rx_indicate(&serial->parent, size);
