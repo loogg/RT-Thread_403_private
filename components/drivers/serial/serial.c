@@ -131,8 +131,10 @@ static rt_err_t rt_serial_control(struct rt_device *dev,
             if(args == RT_NULL)
                 break;
 
+            rt_base_t level = rt_hw_interrupt_disable();
             struct serial_configure *pconfig = (struct serial_configure *)args;
             serial->config = *pconfig;
+            rt_hw_interrupt_enable(level);
 
             if(dev->ref_count)
                 rt_serial_init(dev);
@@ -170,11 +172,13 @@ static rt_err_t rt_serial_control(struct rt_device *dev,
             if(!(dev->flag & RT_SERIAL_FLAG_ASYNC))
                 break;
             
+            rt_base_t level = rt_hw_interrupt_disable();
             int enable = (int)args;
             if(enable)
                 serial->sync_flag = 0;
             else
                 serial->sync_flag = 1;
+            rt_hw_interrupt_enable(level);
             
             ret = RT_EOK;
         }
