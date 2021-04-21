@@ -178,6 +178,8 @@ static rt_err_t rt_serial_control(struct rt_device *dev,
                 serial->sync_flag = 0;
             else
                 serial->sync_flag = 1;
+            if(dev->ref_count)
+                serial->ops->stop_tx(serial);
             rt_hw_interrupt_enable(level);
             
             ret = RT_EOK;
