@@ -495,8 +495,7 @@ rt_size_t at_client_obj_recv(at_client_t client, char *buf, rt_size_t size, rt_i
             result = at_client_getchar(client, &ch, timeout);
             if (result != RT_EOK)
             {
-                LOG_E("AT Client receive failed, uart device get data error(%d)", result);
-                return 0;
+                break;
             }
 
             buf[read_idx++] = ch;
@@ -508,7 +507,7 @@ rt_size_t at_client_obj_recv(at_client_t client, char *buf, rt_size_t size, rt_i
     }
 
 #ifdef AT_PRINT_RAW_CMD
-    at_print_raw_cmd("urc_recv", buf, size);
+    at_print_raw_cmd("urc_recv", buf, read_idx);
 #endif
 
     return read_idx;
