@@ -476,9 +476,7 @@ static rt_err_t at_client_getchar(at_client_t client, char *ch, rt_int32_t timeo
  */
 rt_size_t at_client_obj_recv(at_client_t client, char *buf, rt_size_t size, rt_int32_t timeout)
 {
-    rt_size_t read_idx = 0;
-    rt_err_t result = RT_EOK;
-    char ch;
+    rt_size_t len = 0;
 
     RT_ASSERT(buf);
 
@@ -488,29 +486,30 @@ rt_size_t at_client_obj_recv(at_client_t client, char *buf, rt_size_t size, rt_i
         return 0;
     }
 
-    while (1)
+    while(1)
     {
-        if (read_idx < size)
-        {
-            result = at_client_getchar(client, &ch, timeout);
-            if (result != RT_EOK)
-            {
-                break;
-            }
+        rt_sem_control(client->rx_notice, RT_IPC_CMD_RESET, RT_NULL);
 
-            buf[read_idx++] = ch;
-        }
-        else
+        rt_size_t read_len = rt_device_read(client->device, 0, buf + len, size);
+        if(read_len > 0)
         {
-            break;
+            len += read_len;
+            size -= read_len;
+            if(size == 0)
+                break;
+            
+            continue;
         }
+
+        if(rt_sem_take(client->rx_notice, rt_tick_from_millisecond(timeout)) != RT_EOK)
+            break;
     }
 
 #ifdef AT_PRINT_RAW_CMD
-    at_print_raw_cmd("urc_recv", buf, read_idx);
+    at_print_raw_cmd("urc_recv", buf, len);
 #endif
 
-    return read_idx;
+    return len;
 }
 
 /**
@@ -741,6 +740,8 @@ static void client_parser(at_client_t client)
             {
                 at_response_t resp = client->resp;
 
+                char end_ch = client->recv_line_buf[client->recv_line_len - 1];
+
                 /* current receive is response */
                 client->recv_line_buf[client->recv_line_len - 1] = '\0';
                 if (resp->buf_len + client->recv_line_len < resp->buf_size)
@@ -758,7 +759,12 @@ static void client_parser(at_client_t client)
                     LOG_E("Read response buffer failed. The Response buffer size is out of buffer size(%d)!", resp->buf_size);
                 }
                 /* check response result */
-                if (rt_memcmp(client->recv_line_buf, AT_RESP_END_OK, rt_strlen(AT_RESP_END_OK)) == 0
+                if ((client->end_sign != 0) && (end_ch == client->end_sign) && (resp->line_num == 0))
+                {
+                    /* get the end sign, return response state END_OK.*/
+                    client->resp_status = AT_RESP_OK;
+                }
+                else if (rt_memcmp(client->recv_line_buf, AT_RESP_END_OK, rt_strlen(AT_RESP_END_OK)) == 0
                         && resp->line_num == 0)
                 {
                     /* get the end data by response result, return response state END_OK. */
@@ -863,7 +869,7 @@ static int at_client_para_init(at_client_t client)
                                      (void (*)(void *parameter))client_parser,
                                      client,
                                      1024 + 512,
-                                     1,
+                                     AT_CLIENT_THREAD_PRIORITY,
                                      100);
     if (client->parser == RT_NULL)
     {

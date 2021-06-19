@@ -60,6 +60,10 @@ if RT_USING_AT
             bool "Enable BSD Socket API support by AT commnads"
             select RT_USING_SAL
             default n
+        
+        config AT_CLIENT_THREAD_PRIORITY
+            int "Set at client thread priority"
+            default 11
 
     endif
 
