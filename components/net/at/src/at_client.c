@@ -27,10 +27,10 @@
 
 static struct at_client at_client_table[AT_CLIENT_NUM_MAX] = { 0 };
 
-extern rt_size_t at_device_send(rt_device_t dev,
-                                rt_off_t    pos,
-                                const void *buffer,
-                                rt_size_t   size);
+extern rt_size_t at_utils_send(rt_device_t dev,
+                               rt_off_t    pos,
+                               const void *buffer,
+                               rt_size_t   size);
 extern rt_size_t at_vprintfln(rt_device_t device, const char *format, va_list args);
 extern void at_print_raw_cmd(const char *type, const char *cmd, rt_size_t size);
 extern const char *at_get_last_cmd(rt_size_t *cmd_size);
@@ -393,7 +393,7 @@ int at_client_obj_wait_connect(at_client_t client, rt_uint32_t timeout)
         /* Check whether it is already connected */
         resp->buf_len = 0;
         resp->line_counts = 0;
-        at_device_send(client->device, 0, "AT\r\n", 4);
+        at_utils_send(client->device, 0, "AT\r\n", 4);
 
         if (rt_sem_take(client->resp_notice, resp->timeout) != RT_EOK)
             continue;
@@ -436,7 +436,7 @@ rt_size_t at_client_obj_send(at_client_t client, const char *buf, rt_size_t size
 
     rt_mutex_take(client->lock, RT_WAITING_FOREVER);
 
-    rt_size_t len = at_device_send(client->device, 0, buf, size);
+    rt_size_t len = at_utils_send(client->device, 0, buf, size);
 
     rt_mutex_release(client->lock);
 
@@ -497,7 +497,7 @@ rt_size_t at_client_obj_recv(at_client_t client, char *buf, rt_size_t size, rt_i
             size -= read_len;
             if(size == 0)
                 break;
-            
+
             continue;
         }
 
@@ -588,7 +588,7 @@ int at_obj_set_urc_table(at_client_t client, const struct at_urc *urc_table, rt_
         client->urc_table[client->urc_table_size].urc = urc_table;
         client->urc_table[client->urc_table_size].urc_size = table_sz;
         client->urc_table_size++;
-        
+
         rt_free(old_urc_table);
     }
 
